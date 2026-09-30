@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Опрос eNPS</title>
+<style>
+  :root { --ink:#14213d; --muted:#5b667a; --line:#cfd7e3; --bg:#eef2f6; --card:#fff; --accent:#2b59c3; --accent-ink:#fff; --bad:#c0392b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.6rem; line-height:1.25; margin:0 0 8px; }
+  .lead { color:var(--muted); margin:0 0 24px; }
+  form { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px; }
+  fieldset { border:0; padding:0; margin:0 0 24px; }
+  legend, label.f { display:block; font-weight:600; margin-bottom:8px; padding:0; }
+  input[type=date], select, textarea { width:100%; font:inherit; color:inherit; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  textarea { min-height:110px; resize:vertical; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, .scale input:focus-visible + span { outline:3px solid var(--accent); outline-offset:2px; }
+  .field { margin-bottom:24px; }
+  .scale { display:grid; grid-template-columns:repeat(11,1fr); gap:6px; }
+  .scale label { position:relative; }
+  .scale input { position:absolute; opacity:0; inset:0; cursor:pointer; }
+  .scale span { display:block; text-align:center; padding:12px 0; border:1px solid var(--line); border-radius:6px; font-weight:600; background:#fff; }
+  .scale input:checked + span { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .scale label:hover span { border-color:var(--accent); }
+  .ends { display:flex; justify-content:space-between; color:var(--muted); font-size:.85rem; margin-top:8px; }
+  button { font:inherit; font-weight:600; width:100%; padding:14px; border:0; border-radius:6px; background:var(--accent); color:var(--accent-ink); cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  .msg { margin-top:16px; min-height:1.5em; }
+  .err { color:var(--bad); }
+  .done { text-align:center; padding:48px 16px; }
+  .hint { color:var(--muted); font-size:.85rem; margin-top:6px; }
+  @media (max-width:520px){ .scale { grid-template-columns:repeat(6,1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Насколько вероятно, что вы порекомендуете нашу компанию как место работы другу или знакомому?</h1>
+  <p class="lead">Опрос анонимный: имя и email мы не собираем. Займёт около минуты.</p>
+
+  <form id="f" novalidate>
+    <div class="field">
+      <label class="f" for="date">Дата</label>
+      <input type="date" id="date" name="date" required>
+    </div>
+
+    <div class="field">
+      <label class="f" for="dept">Отдел</label>
+      <select id="dept" name="dept" required>
+        <option value="">Выберите отдел</option>
+        <!-- Замените список на ваши отделы -->
+        <option>HR</option>
+        <option>Разработка</option>
+        <option>Продукт</option>
+        <option>Маркетинг</option>
+        <option>Продажи</option>
+        <option>Финансы</option>
+        <option>Юридический</option>
+        <option>Поддержка</option>
+        <option>Другое</option>
+      </select>
+    </div>
+
+    <fieldset>
+      <legend>Ваша оценка от 0 до 10</legend>
+      <div class="scale" id="scale"></div>
+      <div class="ends"><span>0 — точно не порекомендую</span><span>10 — точно порекомендую</span></div>
+    </fieldset>
+
+    <div class="field">
+      <label class="f" for="comment">Комментарий (по желанию)</label>
+      <textarea id="comment" name="comment" placeholder="Что повлияло на вашу оценку? Что можно улучшить?"></textarea>
+      <div class="hint">Не указывайте в комментарии имена и данные, по которым вас можно узнать.</div>
+    </div>
+
+    <button type="submit" id="btn">Отправить ответ</button>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </form>
+</main>
+
+<script>
+  // Вставьте сюда URL веб-приложения Apps Script (заканчивается на /exec)
+  const SCRIPT_URL = "ВСТАВЬТЕ_URL_ВЕБ-ПРИЛОЖЕНИЯ_СЮДА";
+
+  const scale = document.getElementById("scale");
+  for (let i = 0; i <= 10; i++) {
+    scale.insertAdjacentHTML("beforeend",
+      `<label><input type="radio" name="score" value="${i}" aria-label="${i}"><span>${i}</span></label>`);
+  }
+
+  const d = new Date();
+  document.getElementById("date").value =
+    d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+
+  const form = document.getElementById("f");
+  const msg = document.getElementById("msg");
+  const btn = document.getElementById("btn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.className = "msg";
+    const score = form.querySelector('input[name=score]:checked');
+    if (!form.date.value || !form.dept.value || !score) {
+      msg.className = "msg err";
+      msg.textContent = "Заполните дату, отдел и выберите оценку от 0 до 10.";
+      return;
+    }
+    if (SCRIPT_URL.indexOf("http") !== 0) {
+      msg.className = "msg err";
+      msg.textContent = "Не указан URL Apps Script в коде файла (константа SCRIPT_URL).";
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = "Отправляем…";
+    try {
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          date: form.date.value,
+          dept: form.dept.value,
+          score: Number(score.value),
+          comment: form.comment.value.trim()
+        })
+      });
+      form.innerHTML = '<div class="done"><h2>Спасибо за ответ!</h2><p class="lead">Ваша оценка сохранена анонимно.</p></div>';
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Отправить ответ";
+      msg.className = "msg err";
+      msg.textContent = "Не удалось отправить. Проверьте интернет и попробуйте ещё раз.";
+    }
+  });
+</script>
+</body>
+</html>
